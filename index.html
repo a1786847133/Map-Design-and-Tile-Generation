@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab 4 - Map Design and Tile Generation</title>
+  <title>Lab 4 - Metro Stops Tiles</title>
 
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.8.1/mapbox-gl.css" rel="stylesheet" />
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.8.1/mapbox-gl.js"></script>
@@ -18,14 +18,13 @@
       z-index: 2;
       top: 12px;
       right: 12px;
-      width: 310px;
+      width: 320px;
       background: rgba(255,255,255,0.95);
       border: 1px solid rgba(0,0,0,0.2);
       border-radius: 12px;
       overflow: hidden;
       box-shadow: 0 2px 14px rgba(0,0,0,0.15);
     }
-
     #panel .title {
       padding: 10px 12px;
       font-size: 13px;
@@ -34,7 +33,6 @@
       border-bottom: 1px solid rgba(0,0,0,0.12);
       text-align: center;
     }
-
     #panel .subtitle {
       padding: 10px 12px;
       font-size: 12px;
@@ -42,29 +40,13 @@
       color: #333;
       border-bottom: 1px solid rgba(0,0,0,0.12);
     }
-
     #layers {
       padding: 10px 12px;
       display: grid;
       gap: 8px;
     }
-
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      color: #222;
-    }
-
+    .row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #222; }
     .row input { transform: scale(1.1); }
-
-    .hint {
-      padding: 0 12px 12px 12px;
-      font-size: 11px;
-      color: #555;
-      line-height: 1.35;
-    }
   </style>
 </head>
 
@@ -73,22 +55,23 @@
 
   <div id="panel">
     <div class="title">Lab 4: Metro Stops (Seattle–Eastside)</div>
-    <div class="subtitle">Mapbox basemap loads by default. Turn on any local tilesets below.</div>
+    <div class="subtitle">Default basemap is OpenStreetMap. Toggle your four local tilesets below.</div>
     <div id="layers">
       <label class="row"><input id="cb1" type="checkbox"> tileset_1 (Local basemap)</label>
       <label class="row"><input id="cb2" type="checkbox"> tileset_2 (Metro stops overlay)</label>
       <label class="row"><input id="cb3" type="checkbox"> tileset_3 (Basemap + stops composite)</label>
       <label class="row"><input id="cb4" type="checkbox"> tileset_4 (Transit-themed basemap)</label>
     </div>
-    <div class="hint">If a local layer looks blank, zoom between 10–13 and make sure the folder path is assets/tileset_X/{z}/{x}/{y}.png.</div>
   </div>
 
   <script>
     mapboxgl.accessToken = "pk.eyJ1IjoianN1MyIsImEiOiJjbWhlZW45ZTcwZGR4Mm1wd2FoNmc1eGx4In0.1uDkRhqn0WIQeUtnhvLPOA";
 
+    const emptyStyle = { version: 8, sources: {}, layers: [] };
+
     const map = new mapboxgl.Map({
       container: "map",
-      style: "mapbox://styles/mapbox/light-v11",
+      style: emptyStyle,
       center: [-122.33, 47.61],
       zoom: 11
     });
@@ -102,17 +85,15 @@
       map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
     }
 
-    function syncRules(changedId) {
+    function applyRules(changed) {
       const cb1 = document.getElementById("cb1");
       const cb2 = document.getElementById("cb2");
       const cb3 = document.getElementById("cb3");
       const cb4 = document.getElementById("cb4");
 
-      const baseLike = ["tileset_1", "tileset_3", "tileset_4"];
-
-      if (changedId === "tileset_1" && cb1.checked) { cb3.checked = false; cb4.checked = false; }
-      if (changedId === "tileset_3" && cb3.checked) { cb1.checked = false; cb4.checked = false; cb2.checked = false; }
-      if (changedId === "tileset_4" && cb4.checked) { cb1.checked = false; cb3.checked = false; }
+      if (changed === "tileset_1" && cb1.checked) { cb3.checked = false; cb4.checked = false; }
+      if (changed === "tileset_3" && cb3.checked) { cb1.checked = false; cb4.checked = false; cb2.checked = false; }
+      if (changed === "tileset_4" && cb4.checked) { cb1.checked = false; cb3.checked = false; }
 
       setVis("tileset_1", cb1.checked);
       setVis("tileset_2", cb2.checked);
@@ -121,6 +102,14 @@
     }
 
     map.on("load", () => {
+      map.addSource("osm", {
+        type: "raster",
+        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution: "© OpenStreetMap contributors"
+      });
+      map.addLayer({ id: "osm-basemap", type: "raster", source: "osm", layout: { visibility: "visible" } });
+
       map.addSource("src1", { type: "raster", tiles: ["assets/tileset_1/{z}/{x}/{y}.png"], tileSize: 256 });
       map.addSource("src2", { type: "raster", tiles: ["assets/tileset_2/{z}/{x}/{y}.png"], tileSize: 256 });
       map.addSource("src3", { type: "raster", tiles: ["assets/tileset_3/{z}/{x}/{y}.png"], tileSize: 256 });
@@ -131,10 +120,10 @@
       map.addLayer({ id: "tileset_3", type: "raster", source: "src3", layout: { visibility: "none" } });
       map.addLayer({ id: "tileset_4", type: "raster", source: "src4", layout: { visibility: "none" } });
 
-      document.getElementById("cb1").addEventListener("change", () => syncRules("tileset_1"));
-      document.getElementById("cb2").addEventListener("change", () => syncRules("tileset_2"));
-      document.getElementById("cb3").addEventListener("change", () => syncRules("tileset_3"));
-      document.getElementById("cb4").addEventListener("change", () => syncRules("tileset_4"));
+      document.getElementById("cb1").addEventListener("change", () => applyRules("tileset_1"));
+      document.getElementById("cb2").addEventListener("change", () => applyRules("tileset_2"));
+      document.getElementById("cb3").addEventListener("change", () => applyRules("tileset_3"));
+      document.getElementById("cb4").addEventListener("change", () => applyRules("tileset_4"));
     });
   </script>
 </body>
