@@ -11,15 +11,14 @@
   <style>
     html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
     body { font-family: "Open Sans", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; overflow: hidden; }
-    #map { position: fixed; inset: 0; } /* full screen */
+    #map { position: fixed; inset: 0; } /* FULL SCREEN */
 
-    /* Panel */
     #menu {
       position: fixed;
       z-index: 2;
       top: 12px;
       right: 12px;
-      width: 260px;
+      width: 290px;
       background: rgba(255, 255, 255, 0.95);
       border: 1px solid rgba(0,0,0,0.2);
       border-radius: 10px;
@@ -61,69 +60,95 @@
   <div id="map"></div>
 
   <nav id="menu">
-    <div class="header">Lab 4: Metro Stops Tiles</div>
+    <div class="header">Lab 4: Metro Stops (Seattle–Eastside)</div>
     <div class="desc">
-      Four local raster tilesets (QMetaTiles) displayed with Mapbox GL JS.
-      Click one layer to display (single-select).
+      Default basemap is from Mapbox (online). Toggle the 4 local tilesets (exported from QGIS/QMetaTiles) below.
     </div>
-    <a href="#" data-layer="tileset_1" class="active">Tileset 1: Basemap</a>
-    <a href="#" data-layer="tileset_2">Tileset 2: Metro Stops</a>
-    <a href="#" data-layer="tileset_3">Tileset 3: Basemap + Stops</a>
+
+    <!-- Required: four local tilesets toggles -->
+    <a href="#" data-layer="tileset_1">Tileset 1: Local Basemap</a>
+    <a href="#" data-layer="tileset_2">Tileset 2: Metro Stops (Overlay)</a>
+    <a href="#" data-layer="tileset_3">Tileset 3: Basemap + Stops (Composite)</a>
     <a href="#" data-layer="tileset_4">Tileset 4: Transit-themed Basemap</a>
   </nav>
 
   <script>
     mapboxgl.accessToken = "pk.eyJ1IjoianN1MyIsImEiOiJjbWhlZW45ZTcwZGR4Mm1wd2FoNmc1eGx4In0.1uDkRhqn0WIQeUtnhvLPOA";
 
-    // empty style - only your raster layers
-    const emptyStyle = { version: 8, sources: {}, layers: [] };
-
+    // This is the "external" basemap you want shown on page load
     const map = new mapboxgl.Map({
       container: "map",
-      style: emptyStyle,
+      style: "mapbox://styles/mapbox/light-v11", // you can change to streets-v12, etc.
       center: [-122.33, 47.61],
-      zoom: 11,
-      minZoom: 9,
-      maxZoom: 14
+      zoom: 11
     });
 
+    // Required UI elements
     map.addControl(new mapboxgl.NavigationControl(), "top-left");
     map.addControl(new mapboxgl.ScaleControl({ maxWidth: 120, unit: "imperial" }));
     map.addControl(new mapboxgl.AttributionControl({ compact: true }));
 
-    map.on("load", () => {
-      map.addSource("t1", { type: "raster", tiles: ["assets/tileset_1/{z}/{x}/{y}.png"], tileSize: 256 });
-      map.addSource("t2", { type: "raster", tiles: ["assets/tileset_2/{z}/{x}/{y}.png"], tileSize: 256 });
-      map.addSource("t3", { type: "raster", tiles: ["assets/tileset_3/{z}/{x}/{y}.png"], tileSize: 256 });
-      map.addSource("t4", { type: "raster", tiles: ["assets/tileset_4/{z}/{x}/{y}.png"], tileSize: 256 });
-
-      // NOTE: only tileset_1 visible by default
-      map.addLayer({ id: "tileset_1", type: "raster", source: "t1", layout: { visibility: "visible" } });
-      map.addLayer({ id: "tileset_2", type: "raster", source: "t2", layout: { visibility: "none" } });
-      map.addLayer({ id: "tileset_3", type: "raster", source: "t3", layout: { visibility: "none" } });
-      map.addLayer({ id: "tileset_4", type: "raster", source: "t4", layout: { visibility: "none" } });
-    });
-
-    // Single-select layer switcher
-    function showOnly(layerId) {
-      const ids = ["tileset_1", "tileset_2", "tileset_3", "tileset_4"];
-      for (const id of ids) {
-        if (!map.getLayer(id)) continue;
-        map.setLayoutProperty(id, "visibility", (id === layerId) ? "visible" : "none");
-      }
+    // Helper functions
+    const BASE_LIKE = new Set(["tileset_1", "tileset_3", "tileset_4"]); // these are "full-map" tiles
+    function getVis(id) { return map.getLayoutProperty(id, "visibility"); }
+    function setVis(id, v) { map.setLayoutProperty(id, "visibility", v); }
+    function setActiveLink(id, on) {
+      const link = document.querySelector(`#menu a[data-layer="${id}"]`);
+      if (link) link.classList.toggle("active", on);
     }
 
+    map.on("load", () => {
+      // Sources (underscore paths!)
+      map.addSource("src1", { type: "raster", tiles: ["assets/tileset_1/{z}/{x}/{y}.png"], tileSize: 256 });
+      map.addSource("src2", { type: "raster", tiles: ["assets/tileset_2/{z}/{x}/{y}.png"], tileSize: 256 });
+      map.addSource("src3", { type: "raster", tiles: ["assets/tileset_3/{z}/{x}/{y}.png"], tileSize: 256 });
+      map.addSource("src4", { type: "raster", tiles: ["assets/tileset_4/{z}/{x}/{y}.png"], tileSize: 256 });
+
+      // Layers are added ABOVE the Mapbox basemap
+      map.addLayer({ id: "tileset_1", type: "raster", source: "src1", layout: { visibility: "none" } });
+      map.addLayer({ id: "tileset_2", type: "raster", source: "src2", layout: { visibility: "none" } }); // overlay
+      map.addLayer({ id: "tileset_3", type: "raster", source: "src3", layout: { visibility: "none" } });
+      map.addLayer({ id: "tileset_4", type: "raster", source: "src4", layout: { visibility: "none" } });
+    });
+
+    // Click handler for toggles
     document.getElementById("menu").addEventListener("click", (e) => {
       const link = e.target.closest("a[data-layer]");
       if (!link) return;
       e.preventDefault();
 
-      const layerId = link.getAttribute("data-layer");
-      showOnly(layerId);
+      const id = link.getAttribute("data-layer");
+      if (!map.getLayer(id)) return;
 
-      // update UI
-      document.querySelectorAll('#menu a[data-layer]').forEach(a => a.classList.remove("active"));
-      link.classList.add("active");
+      const isOn = (getVis(id) === "visible");
+      const next = isOn ? "none" : "visible";
+
+      // If turning on a "basemap-like" local layer, turn off other basemap-like layers to avoid stacking.
+      if (BASE_LIKE.has(id) && next === "visible") {
+        for (const other of BASE_LIKE) {
+          if (other !== id && map.getLayer(other)) {
+            setVis(other, "none");
+            setActiveLink(other, false);
+          }
+        }
+        // Also: composite already includes stops; if you turn on tileset_3, you probably don't want overlay stops too.
+        if (id === "tileset_3" && map.getLayer("tileset_2")) {
+          setVis("tileset_2", "none");
+          setActiveLink("tileset_2", false);
+        }
+      }
+
+      // tileset_2 is overlay: can be toggled with tileset_1 or tileset_4, but not necessary with tileset_3.
+      if (id === "tileset_2" && next === "visible") {
+        // If composite is currently on, turn it off to avoid double stops/basemap
+        if (map.getLayer("tileset_3") && getVis("tileset_3") === "visible") {
+          setVis("tileset_3", "none");
+          setActiveLink("tileset_3", false);
+        }
+      }
+
+      setVis(id, next);
+      setActiveLink(id, next === "visible");
     });
   </script>
 </body>
