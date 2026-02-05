@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 4 - Map Design and Tile Generation</title>
+
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.8.1/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.8.1/mapbox-gl.js"></script>
+
+  <style>
+    body { margin: 0; padding: 0; font-family: "Open Sans", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+    /* Layer control menu */
+    #menu {
+      position: absolute;
+      z-index: 2;
+      top: 12px;
+      right: 12px;
+      width: 220px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(0,0,0,0.2);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.15);
+    }
+
+    #menu .header {
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      background: #f4f4f4;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+      text-align: center;
+    }
+
+    #menu .desc {
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #333;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+    }
+
+    #menu a {
+      display: block;
+      padding: 10px 12px;
+      text-decoration: none;
+      font-size: 13px;
+      color: #222;
+      border-bottom: 1px solid rgba(0,0,0,0.10);
+      user-select: none;
+    }
+
+    #menu a:last-child { border-bottom: none; }
+    #menu a:hover { background: #f7f7f7; }
+    #menu a.active { background: #2b7bb9; color: #fff; }
+    #menu a.active:hover { background: #256a9f; }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+
+  <nav id="menu">
+    <div class="header">Lab 4: Seattle–Eastside Transit</div>
+    <div class="desc">
+      Four locally hosted raster tilesets exported from QGIS (QMetaTiles) and displayed with Mapbox GL JS.
+      Use the toggles below to show/hide each tileset.
+    </div>
+  </nav>
+
+  <script>
+    // TODO: Replace with your own Mapbox access token
+    mapboxgl.accessToken = "YOUR_MAPBOX_ACCESS_TOKEN";
+
+    // Use an empty style so only your tiles render
+    const emptyStyle = { version: 8, sources: {}, layers: [] };
+
+    const map = new mapboxgl.Map({
+      container: "map",
+      style: emptyStyle,
+      center: [-122.33, 47.61],  // Seattle
+      zoom: 11
+    });
+
+    // Controls (rubric-friendly)
+    map.addControl(new mapboxgl.NavigationControl(), "top-left");
+    map.addControl(new mapboxgl.ScaleControl({ maxWidth: 120, unit: "imperial" }));
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+
+    map.on("load", () => {
+      // --- Sources ---
+      map.addSource("tileset-1", {
+        type: "raster",
+        tiles: ["assets/tileset_1/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution: "Tileset 1: Basemap (Mapbox/QGIS export)"
+      });
+
+      map.addSource("tileset-2", {
+        type: "raster",
+        tiles: ["assets/tileset_2/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution: "Tileset 2: Metro Stops (King County data, clipped to study area)"
+      });
+
+      map.addSource("tileset-3", {
+        type: "raster",
+        tiles: ["assets/tileset_3/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution: "Tileset 3: Basemap + Metro Stops (composite export)"
+      });
+
+      map.addSource("tileset-4", {
+        type: "raster",
+        tiles: ["assets/tileset_4/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution: "Tileset 4: Transit-themed Basemap (Mapbox Studio style export)"
+      });
+
+      // --- Layers (order matters; later layers draw on top) ---
+      map.addLayer({ id: "layer-1", type: "raster", source: "tileset-1", layout: { visibility: "visible" } });
+      map.addLayer({ id: "layer-2", type: "raster", source: "tileset-2", layout: { visibility: "none" } });
+      map.addLayer({ id: "layer-3", type: "raster", source: "tileset-3", layout: { visibility: "none" } });
+      map.addLayer({ id: "layer-4", type: "raster", source: "tileset-4", layout: { visibility: "none" } });
+    });
+
+    // Build layer switcher once layers exist
+    map.on("idle", () => {
+      const items = [
+        { id: "layer-1", label: "Tileset 1: Basemap" },
+        { id: "layer-2", label: "Tileset 2: Metro Stops" },
+        { id: "layer-3", label: "Tileset 3: Basemap + Stops" },
+        { id: "layer-4", label: "Tileset 4: Transit-themed Basemap" }
+      ];
+
+      for (const item of items) {
+        if (!map.getLayer(item.id)) return;
+        if (document.getElementById(item.id)) continue;
+
+        const link = document.createElement("a");
+        link.id = item.id;
+        link.href = "#";
+        link.textContent = item.label;
+
+        const vis = map.getLayoutProperty(item.id, "visibility");
+        if (vis === "visible") link.className = "active";
+
+        link.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const visibility = map.getLayoutProperty(item.id, "visibility");
+          if (visibility === "visible") {
+            map.setLayoutProperty(item.id, "visibility", "none");
+            link.className = "";
+          } else {
+            map.setLayoutProperty(item.id, "visibility", "visible");
+            link.className = "active";
+          }
+        };
+
+        document.getElementById("menu").appendChild(link);
+      }
+    });
+  </script>
+</body>
+
+</html>
