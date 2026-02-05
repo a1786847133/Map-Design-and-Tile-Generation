@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 4 - Map Design and Tile Generation</title>
+
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.8.1/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.8.1/mapbox-gl.js"></script>
+
+  <style>
+    html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
+    body { font-family: "Open Sans", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; overflow: hidden; }
+    #map { position: fixed; inset: 0; } /* full screen */
+
+    /* Panel */
+    #menu {
+      position: fixed;
+      z-index: 2;
+      top: 12px;
+      right: 12px;
+      width: 260px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(0,0,0,0.2);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.15);
+    }
+    #menu .header {
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      background: #f4f4f4;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+      text-align: center;
+    }
+    #menu .desc {
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #333;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+    }
+    #menu a {
+      display: block;
+      padding: 10px 12px;
+      text-decoration: none;
+      font-size: 13px;
+      color: #222;
+      border-bottom: 1px solid rgba(0,0,0,0.10);
+      user-select: none;
+    }
+    #menu a:last-child { border-bottom: none; }
+    #menu a:hover { background: #f7f7f7; }
+    #menu a.active { background: #2b7bb9; color: #fff; }
+    #menu a.active:hover { background: #256a9f; }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+
+  <nav id="menu">
+    <div class="header">Lab 4: Metro Stops Tiles</div>
+    <div class="desc">
+      Four local raster tilesets (QMetaTiles) displayed with Mapbox GL JS.
+      Click one layer to display (single-select).
+    </div>
+    <a href="#" data-layer="tileset_1" class="active">Tileset 1: Basemap</a>
+    <a href="#" data-layer="tileset_2">Tileset 2: Metro Stops</a>
+    <a href="#" data-layer="tileset_3">Tileset 3: Basemap + Stops</a>
+    <a href="#" data-layer="tileset_4">Tileset 4: Transit-themed Basemap</a>
+  </nav>
+
+  <script>
+    mapboxgl.accessToken = "pk.eyJ1IjoianN1MyIsImEiOiJjbWhlZW45ZTcwZGR4Mm1wd2FoNmc1eGx4In0.1uDkRhqn0WIQeUtnhvLPOA";
+
+    // empty style - only your raster layers
+    const emptyStyle = { version: 8, sources: {}, layers: [] };
+
+    const map = new mapboxgl.Map({
+      container: "map",
+      style: emptyStyle,
+      center: [-122.33, 47.61],
+      zoom: 11,
+      minZoom: 9,
+      maxZoom: 14
+    });
+
+    map.addControl(new mapboxgl.NavigationControl(), "top-left");
+    map.addControl(new mapboxgl.ScaleControl({ maxWidth: 120, unit: "imperial" }));
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+
+    map.on("load", () => {
+      map.addSource("t1", { type: "raster", tiles: ["assets/tileset_1/{z}/{x}/{y}.png"], tileSize: 256 });
+      map.addSource("t2", { type: "raster", tiles: ["assets/tileset_2/{z}/{x}/{y}.png"], tileSize: 256 });
+      map.addSource("t3", { type: "raster", tiles: ["assets/tileset_3/{z}/{x}/{y}.png"], tileSize: 256 });
+      map.addSource("t4", { type: "raster", tiles: ["assets/tileset_4/{z}/{x}/{y}.png"], tileSize: 256 });
+
+      // NOTE: only tileset_1 visible by default
+      map.addLayer({ id: "tileset_1", type: "raster", source: "t1", layout: { visibility: "visible" } });
+      map.addLayer({ id: "tileset_2", type: "raster", source: "t2", layout: { visibility: "none" } });
+      map.addLayer({ id: "tileset_3", type: "raster", source: "t3", layout: { visibility: "none" } });
+      map.addLayer({ id: "tileset_4", type: "raster", source: "t4", layout: { visibility: "none" } });
+    });
+
+    // Single-select layer switcher
+    function showOnly(layerId) {
+      const ids = ["tileset_1", "tileset_2", "tileset_3", "tileset_4"];
+      for (const id of ids) {
+        if (!map.getLayer(id)) continue;
+        map.setLayoutProperty(id, "visibility", (id === layerId) ? "visible" : "none");
+      }
+    }
+
+    document.getElementById("menu").addEventListener("click", (e) => {
+      const link = e.target.closest("a[data-layer]");
+      if (!link) return;
+      e.preventDefault();
+
+      const layerId = link.getAttribute("data-layer");
+      showOnly(layerId);
+
+      // update UI
+      document.querySelectorAll('#menu a[data-layer]').forEach(a => a.classList.remove("active"));
+      link.classList.add("active");
+    });
+  </script>
+</body>
+</html>
