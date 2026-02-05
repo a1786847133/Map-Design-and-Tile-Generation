@@ -15,9 +15,9 @@ All tilesets were exported around **z 10–13**.
 
 ## Tilesets
 - **tileset_1:** local basemap
-- **tileset_2:** metro stops (thematic overlay)
-- **tileset_3:** basemap + stops (composite)
-- **tileset_4:** transit-themed basemap (highlight the road in the city)
+- **tileset_2:** metro stops
+- **tileset_3:** basemap + stops
+- **tileset_4:** transit-themed basemap (highlight the roads in the city)
 
 ## Screenshots
 
